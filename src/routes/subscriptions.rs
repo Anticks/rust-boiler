@@ -1,7 +1,6 @@
+use super::super::entities::subscription::{CreateSubscriptionInput, Subscription};
 use axum::{extract::State, http::StatusCode, Form};
-use chrono::Utc;
 use sqlx::PgPool;
-use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -11,24 +10,16 @@ pub struct FormData {
 
 #[axum::debug_handler]
 pub async fn subscribe(State(pool): State<PgPool>, Form(data): Form<FormData>) -> StatusCode {
-    match sqlx::query!(
-        r#"
-            insert into subscriptions (id, email, name, subscribed_at)
-            values ($1, $2, $3, $4)
-        "#,
-        Uuid::new_v4(),
-        data.email,
-        data.name,
-        Utc::now()
+    match Subscription::create(
+        CreateSubscriptionInput {
+            email: data.email,
+            name: data.name,
+        },
+        pool,
     )
-    .execute(&pool)
     .await
     {
-        Ok(_) => StatusCode::OK,
-        Err(e) => {
-            println!("Failed to execute query: {}", e);
-
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        Ok(_result) => StatusCode::OK,
+        Err(_error) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
